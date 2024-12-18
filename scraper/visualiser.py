@@ -9,61 +9,64 @@ def visualise(db_file):
     conn.execute("PRAGMA synchronous = NORMAL;")
     
     G = nx.DiGraph()
-    
-    # Get all pages
     cur = conn.cursor()
-    cur.execute("SELECT url, parent FROM pages")
-    rows = cur.fetchall()
-    
-    for row in rows:
-        url, parent = row
-        if parent:
-            G.add_edge(parent, url)
-    
-    # Get node positions
+
+    # Fetch pages
+    cur.execute("SELECT id, url FROM pages")
+    pages = {row[0]: row[1] for row in cur.fetchall()}
+
+    # Fetch links
+    cur.execute("SELECT parent_id, child_id FROM links")
+    links = cur.fetchall()
+
+    # Add edges to the graph
+    for parent_id, child_id in links:
+        parent_url = pages.get(parent_id)
+        child_url = pages.get(child_id)
+        if parent_url and child_url:
+            G.add_edge(parent_url, child_url)
+
+    # Node positions
     pos = nx.spring_layout(G)
-    
-    # Create node trace for visualization
+
+    # Node traces
     node_x = []
     node_y = []
     node_text = []
     node_color = []
-    
+
     for node, coords in pos.items():
         node_x.append(coords[0])
         node_y.append(coords[1])
         node_text.append(node)
-        # Node color based on degree (number of connections)
-        node_color.append(G.degree(node))  # G.degree(node) gives the total degree (in-degree + out-degree)
-    
+        node_color.append(G.degree(node))
+
+    # Edge traces
     edge_x = []
     edge_y = []
-    
-    # Create edge traces
+
     for edge in G.edges():
         x0, y0 = pos[edge[0]]
         x1, y1 = pos[edge[1]]
         edge_x.extend([x0, x1, None])
         edge_y.extend([y0, y1, None])
-    
+
     edge_trace = go.Scatter(
-        x=edge_x,
-        y=edge_y,
+        x=edge_x, y=edge_y,
         line=dict(width=0.5, color='#888'),
         hoverinfo='none',
         mode='lines'
     )
-    
+
     node_trace = go.Scatter(
-        x=node_x,
-        y=node_y,
+        x=node_x, y=node_y,
         mode='markers',
         hoverinfo='text',
         marker=dict(
             showscale=True,
             colorscale='RdBu_r',
             size=10,
-            color=node_color,  # Node color corresponds to degree
+            color=node_color,
             colorbar=dict(
                 thickness=15,
                 title='Node Connections',
@@ -71,9 +74,9 @@ def visualise(db_file):
                 titleside='right'
             ),
         ),
-        text=node_text  # Hover text displays the node name
+        text=node_text
     )
-    
+
     # Build the figure
     fig = go.Figure(
         data=[edge_trace, node_trace],
@@ -92,4 +95,4 @@ def visualise(db_file):
     fig.show()
 
 if __name__ == "__main__":
-    visualise("crawler.db")
+    visualise("crawler_graph.db")
