@@ -3,6 +3,10 @@ TODO:
 - Generalize the crawler filter so it is not hard-coded to gatech.edu.
 - Add some heuristic to determine if a page is useful or not.
     - The more useful, the more depth should be searched.
+    - Idea: 
+        - After N levels, perform PageRank to identify the most important pages.
+        - The depth of each node will be proportional to its PageRank score.
+        - Am I just recreating Google at this point???
 '''
 
 import requests
