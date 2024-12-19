@@ -5,6 +5,7 @@
 3. Scraper reads the database and scrapes the data.
 ## Requirements
 1. sqlite3
-2. beautiful soup
-3. plotly
-4. networkx
+2. networkx
+3. scrapy
+## Run Crawler
+scrapy crawl crawler_spider
