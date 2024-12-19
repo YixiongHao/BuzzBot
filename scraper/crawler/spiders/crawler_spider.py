@@ -5,8 +5,8 @@ from scrapy.linkextractors import LinkExtractor
 
 class CrawlerSpider(CrawlSpider):
     name = "crawler_spider"
-    allowed_domains = ["gatech.edu"]
-    start_urls = ["https://ece.gatech.edu/"]
+    allowed_domains = ["cc.gatech.edu"]
+    start_urls = ["https://cc.gatech.edu/"]
 
     # Deny certain file extensions to avoid non-HTML resources
     deny_extensions = [
@@ -14,10 +14,12 @@ class CrawlerSpider(CrawlSpider):
         'xls', 'xlsx', 'mp3', 'mp4', 'avi', 'wav', 'zip'
     ]
 
+    deny_subdomains = [r'/people.*', r'/news.*', r'/events.*', r'mail', r'calendar', r'hcc']
+
     # Define rules to automatically follow links
     rules = (
         Rule(
-            LinkExtractor(allow_domains=allowed_domains, deny_extensions=deny_extensions),
+            LinkExtractor(allow_domains=allowed_domains, deny_extensions=deny_extensions, deny=deny_subdomains),
             callback='parse_item', follow=True
         ),
     )
@@ -46,7 +48,7 @@ class CrawlerSpider(CrawlSpider):
             self.db.insert_link(parent_url, current_url)
 
         # Pass the current URL as the parent for child requests
-        for link in LinkExtractor(allow_domains=self.allowed_domains, deny_extensions=self.deny_extensions).extract_links(response):
+        for link in LinkExtractor(allow_domains=self.allowed_domains, deny_extensions=self.deny_extensions, deny=self.deny_subdomains).extract_links(response):
             yield scrapy.Request(
                 url=link.url,
                 callback=self.parse_item,

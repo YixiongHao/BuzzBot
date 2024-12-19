@@ -4,7 +4,7 @@ SPIDER_MODULES = ['crawler.spiders']
 NEWSPIDER_MODULE = 'crawler.spiders'
 
 ROBOTSTXT_OBEY = True
-DEPTH_LIMIT = 3
+DEPTH_LIMIT = 5
 LOG_ENABLED = True
 
 JOBDIR = 'crawls/crawler_state'
