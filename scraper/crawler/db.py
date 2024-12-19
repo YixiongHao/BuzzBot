@@ -2,7 +2,7 @@ import sqlite3
 from typing import Optional
 
 class DBHelper:
-    def __init__(self, db_path="crawler_graph.db"):
+    def __init__(self, db_path="crawler.db"):
         self.db_path = db_path
         self.conn: Optional[sqlite3.Connection] = None
     

@@ -95,4 +95,4 @@ def visualise(db_file):
     fig.show()
 
 if __name__ == "__main__":
-    visualise("crawler_graph.db")
+    visualise("./crawler.db")
