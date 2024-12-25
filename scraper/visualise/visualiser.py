@@ -9,7 +9,7 @@ import sqlite3
 # Globals and Parameters #
 ##########################
 
-DB_FILE = "./database/testcrawler.db"  # Path to your DB
+DB_FILE = "./database/data.db"  # Path to your DB
 pos_cache = {}                # Caches node positions keyed by DB file
 
 ##########################
