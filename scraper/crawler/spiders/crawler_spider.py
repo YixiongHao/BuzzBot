@@ -5,13 +5,15 @@ from scrapy.linkextractors import LinkExtractor
 
 class CrawlerSpider(CrawlSpider):
     name = "crawler_spider"
-    allowed_domains = ["cc.gatech.edu"]
-    start_urls = ["https://cc.gatech.edu/"]
+    allowed_domains = ["ece.gatech.edu"]
+    start_urls = ["https://ece.gatech.edu/"]
 
     # Deny certain file extensions to avoid non-HTML resources
     deny_extensions = [
         'jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx',
-        'xls', 'xlsx', 'mp3', 'mp4', 'avi', 'wav', 'zip'
+        'xls', 'xlsx', 'mp3', 'mp4', 'avi', 'wav', 'zip', 
+        'rar', 'tar', 'gz', 'exe', 'iso', 'dmg', 'bin',
+        '7z', '7zip', 'apk', 'wmv', 'flv', 'avi', 'mov'
     ]
 
     deny_subdomains = [r'/people.*', r'/news.*', r'/events.*', r'mail', r'calendar', r'hcc']

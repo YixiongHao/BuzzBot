@@ -2,7 +2,7 @@ from .db import DBHelper
 
 class DataBasePipeline:
     def open_spider(self, spider):
-        self.db = DBHelper()
+        self.db = DBHelper(db_path="./database/data.db")
         self.db.open_connection()
         spider.db = self.db  # Attach db to spider for convenience
 
