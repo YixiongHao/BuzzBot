@@ -5,8 +5,8 @@ from scrapy.linkextractors import LinkExtractor
 
 class CrawlerSpider(CrawlSpider):
     name = "crawler_spider"
-    allowed_domains = ["ece.gatech.edu"]
-    start_urls = ["https://ece.gatech.edu/"]
+    allowed_domains = ["cc.gatech.edu"]
+    start_urls = ["https://cc.gatech.edu/"]
 
     # Deny certain file extensions to avoid non-HTML resources
     deny_extensions = [
