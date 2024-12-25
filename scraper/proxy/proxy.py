@@ -104,8 +104,9 @@ if __name__ == '__main__':
     proxy = FreeProxy(timeout=1, rand=True)
     ip = proxy.get()
     print(ip)
+    proxy = {'http': ip, 'https': ip,}
 
-    response = requests.get('https://httpbin.org/ip', proxies={'http': ip})
-    print(response.json())
+    response = requests.get('https://httpbin.org/headers', proxies=proxy, verify=False)
+    print(response.text)
     
     
