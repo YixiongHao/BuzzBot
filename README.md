@@ -14,6 +14,7 @@ Install necessary packages:
 
 ```bash
 pip install -r requirements.txt
+conda install anaconda::ffmpeg #for whisper, need the executable
 ```
 
 ## Index Setup

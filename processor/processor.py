@@ -127,7 +127,7 @@ def process_file(file_path: str) -> bool:
     text = ""
     if file_metadata["extension"] in [".txt"]:
         # Pure text files
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding='utf-8') as f: #specify encoding, most should be utf-8
             text = f.read()
     elif file_metadata["extension"] in [".mp3"]:
         # Audio files
