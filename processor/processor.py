@@ -17,6 +17,8 @@ from transformers import BlipForConditionalGeneration, BlipProcessor
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
+#specify path to tesseract executable instead of adding to system path
+pytesseract.pytesseract.tesseract_cmd = r'C:\Users\Yixio\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'
 
 # This is just for illustration purposes.
 # Expand the list to include more extensions and update the process_file function as needed.
@@ -33,7 +35,7 @@ BLIP_MODEL = BlipForConditionalGeneration.from_pretrained(
 )
 
 # Elasticsearch
-ES = Elasticsearch("http://localhost:3000/")
+ES = Elasticsearch("http://localhost:9200/")
 INDEX = "nls_search_final"
 
 # To make the index compatible with LangChain's QA chain, besides indexing each field separately,
