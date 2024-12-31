@@ -7,8 +7,12 @@
 1. sqlite3
 2. networkx
 3. scrapy
+4. html2text
 ## Run Crawler
 scrapy crawl crawler_spider
 cntrl-c to shut down (ONLY PRESS IT ONCE FOR CLEAN SHUTDOWN WHICH ALLOWS RESUME FEATURE)
 ## TODO
 1. Actually write the downloading part of the scraper part...
+    1. title be filename
+    2. text
+    3. url
