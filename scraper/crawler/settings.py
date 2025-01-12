@@ -42,4 +42,5 @@ ITEM_PIPELINES = {
 DOWNLOADER_MIDDLEWARES = {
     'crawler.middlewares.URLFilterMiddleware': 543,
     'crawler.middlewares.ContentTypeFilterMiddleware': 544,  # Ignore everything but html files?
+      'crawler.middlewares.Proxy': 545,
 }
