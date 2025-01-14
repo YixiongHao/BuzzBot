@@ -1,7 +1,6 @@
 import re
 from scrapy.exceptions import IgnoreRequest
 from scrapy import signals
-from ..proxy.proxy import FreeProxy
 
 
 class URLFilterMiddleware:
@@ -47,9 +46,18 @@ class ContentTypeFilterMiddleware:
 
 
 class Proxy:
-    def __init__(self):
-        self.proxy = FreeProxy(timeout=1, rand=True).get()
-       
+    def __init__(self, proxy):
+        self.proxy = proxy
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        # Load the proxy from settings
+        proxy = crawler.settings.get('PROXY', None)
+        return cls(proxy)
+
     def process_request(self, request, spider):
-        if 'proxy' not in request.meta:
+        if self.proxy != None:
             request.meta['proxy'] = self.proxy
+            spider.logger.info(f"Using Proxy: {self.proxy}")
+            return None
+        return None
