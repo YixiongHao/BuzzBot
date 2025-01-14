@@ -1,3 +1,5 @@
+from proxy.proxy import FreeProxy
+
 BOT_NAME = 'crawler'
 
 DEPTH_LIMIT = 5
@@ -15,10 +17,10 @@ LOG_LEVEL = 'DEBUG'  # 'INFO'
 ALLOWED_CONTENT_TYPES = ["text/html", "application/xhtml+xml"]
 
 # Domain constraints 
-ALLOWED_DOMAINS = ["cc.gatech.edu"]
+ALLOWED_DOMAINS = ["ece.gatech.edu"]
 
 # Seed URLS
-SEED_URLS = ["https://cc.gatech.edu/"]
+SEED_URLS = ["https://ece.gatech.edu/"]
 
 # Deny subdomains using regex patterns
 URL_FILTER_PATTERNS = [
@@ -29,6 +31,9 @@ URL_FILTER_PATTERNS = [
    r'calendar', 
    r'hcc'
 ]
+
+# Proxy
+PROXY = FreeProxy(timeout=1, rand=True).get()
 
 # Database Path
 DB_PATH = "./database/data.db"  
@@ -42,4 +47,5 @@ ITEM_PIPELINES = {
 DOWNLOADER_MIDDLEWARES = {
     'crawler.middlewares.URLFilterMiddleware': 543,
     'crawler.middlewares.ContentTypeFilterMiddleware': 544,  # Ignore everything but html files?
+    'crawler.middlewares.Proxy': 545,
 }

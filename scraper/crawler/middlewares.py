@@ -2,6 +2,7 @@ import re
 from scrapy.exceptions import IgnoreRequest
 from scrapy import signals
 
+
 class URLFilterMiddleware:
     def __init__(self, patterns):
         self.patterns = [re.compile(pattern) for pattern in patterns]
@@ -42,4 +43,21 @@ class ContentTypeFilterMiddleware:
 
     def spider_opened(self, spider):
         spider.logger.info("ContentTypeFilterMiddleware initialized.")
-        
+
+
+class Proxy:
+    def __init__(self, proxy):
+        self.proxy = proxy
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        # Load the proxy from settings
+        proxy = crawler.settings.get('PROXY', None)
+        return cls(proxy)
+
+    def process_request(self, request, spider):
+        if self.proxy != None:
+            request.meta['proxy'] = self.proxy
+            spider.logger.info(f"Using Proxy: {self.proxy}")
+            return None
+        return None
