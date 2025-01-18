@@ -35,13 +35,13 @@ URL_FILTER_PATTERNS = [
 # Proxy
 PROXY = FreeProxy(timeout=1, rand=True).get()
 
-# Database Path
-DB_PATH = "./database/data.db"  
+# JSON FILE NAME
+NDJSON_FILE_NAME = "crawled_links/visited_urls.json"
 
 JOBDIR = 'crawls/crawler_state'
 
 ITEM_PIPELINES = {
-   'crawler.pipelines.DataBasePipeline': 300,
+    'crawler.pipelines.NdjsonWriterPipeline': 300,
 }
 
 DOWNLOADER_MIDDLEWARES = {
