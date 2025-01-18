@@ -24,8 +24,8 @@ def extractor(url):
 
         # Convert HTML to Markdown
         converter = html2text.HTML2Text()
-        converter.ignore_links = False  # Keep links
-        converter.ignore_images = False  # Keep images
+        converter.ignore_links = True  # Keep links
+        converter.ignore_images = True  # Keep images
         converter.bypass_tables = False  # Convert tables
 
         markdown_content = converter.handle(html_content)

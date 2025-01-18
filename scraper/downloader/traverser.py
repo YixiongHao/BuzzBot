@@ -7,7 +7,7 @@ import re
 
 
 # Connect to the SQLite database
-db_path = './database/ece.db' 
+db_path = './database/data.db' 
 conn = sqlite3.connect(db_path)
 links_df = pd.read_sql_query("SELECT * FROM links", conn)
 pages_df = pd.read_sql_query("SELECT * FROM pages", conn)
@@ -65,9 +65,9 @@ def bfs(links, pages, start_node, max_depth):
             # Print the current node and its corresponding URL
             url = url_map.get(current_node, "URL not found")
             title, content = extractor(url)
-            file = create_file("./downloader/files", title, content, write=False)
+            file = create_file("./downloader/files", title, content, write=True)
 
-            print(f"Node: {current_node} \t Depth: {current_depth} \t File: {file}")
+            print(f"Node: {current_node} \t Depth: {current_depth} \t File: {file} \t URL: {url}")
 
             # Get children of the current node
             if current_depth < max_depth:  # Only add children if below the depth limit
