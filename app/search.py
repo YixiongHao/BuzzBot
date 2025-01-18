@@ -175,7 +175,7 @@ def answer_question(question: str) -> NLSResult:
         chain_type="stuff",  # -> fill up
         llm=llm,
         retriever=es_store.as_retriever(
-            search_kwargs={"k": 1},  # Right now, we only keep one file as the source
+            search_kwargs={"k": 3},  # Right now, we keep 3 file as the source
         ),
         return_source_documents=True,
     )
@@ -211,23 +211,12 @@ def get_answers_for_question(question: str) -> NLSResult:
 
 SYSTEM_PROMPT = """You are a highly capable assistant designed to help with searching for files and answering questions about them. You have access to specialized tools for different types of queries. You always have to use at least one tool.
 
-1. For questions about file contents:
-   Use the question answering tool to provide information from the files. This is usually indicated by a ending question mark (?) in the query.
-
-2. For time-ranged queries (involving dates or times):
-   Use the time-ranged search tool. Remember that the current Unix timestamp is {current_time}.
-   Avoid performing time calculations yourself; use the provided tools for accuracy.
-
-3. For semantic queries (general search without time constraints):
-   Use the semantic search tool to find relevant files based on content or keywords. A semantic query does not contain a question mark (?) in the end. 
-   Only use this tool if the query does not fit into any of the above categories.
+You should use the question answering tool to provide information from the files returned by the semantic search tool that answers the query.
 
 When responding:
-- Analyze the query to determine which tool is most appropriate, starting with the question answering tool, then the time-ranged search tool, and finally the semantic search tool.
 - You have to use at least one tool.
 - Use the tools to obtain accurate results rather than estimating or computing manually.
-- For time-ranged searches, ensure you pass properly computed timestamps (as floats representing Unix time) to the tools.
-- If unsure about any calculation or process, use the appropriate tool to achieve the desired outcome.
+- If the query is ambiguous, make the best assumption and proceed with the search rather than asking for clarification.
 - Return tool outputs to the user without modifications if they appear correct.
 
 Your goal is to route each query to the most suitable tool and provide accurate, helpful responses based on the tool's output.
@@ -242,8 +231,8 @@ def natural_language_search(query: str) -> tuple[NLSResult, dict[str, File]]:
     tools = [
         get_answers_for_question,  # to answer questions about the file contents
         # TODO: Consider combining these two tools into a single tool that can perform both time-ranged and semantic search.
-        get_time_ranged_search_results,  # to perform time-ranged search
-        get_semantic_search_results,  # to perform semantic search
+        #get_time_ranged_search_results,  # to perform time-ranged search
+        #get_semantic_search_results,  # to perform semantic search
         PythonREPLTool(),  # to execute python code, for doing math
     ]
 

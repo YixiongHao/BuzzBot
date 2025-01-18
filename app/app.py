@@ -14,6 +14,7 @@ def _get_file_element(file_meta: File) -> Element:
         ".jpg": cl.Image,
         ".jpeg": cl.Image,
         ".png": cl.Image,
+        ".md": cl.Text,
     }
 
     element_cls = element_cls_by_ext.get(file_meta.extension)

@@ -22,7 +22,7 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Users\Yixio\AppData\Local\Programs\
 
 # This is just for illustration purposes.
 # Expand the list to include more extensions and update the process_file function as needed.
-VALID_FILE_EXTENSIONS = [".pdf", ".mp3", ".txt", ".png", ".jpg", ".jpeg"]
+VALID_FILE_EXTENSIONS = [".pdf", ".mp3", ".txt", ".png", ".jpg", ".jpeg", ".md"]
 
 SBERT_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
 EMBEDDING_DIM = SBERT_MODEL.encode("random").shape[0]
@@ -125,7 +125,7 @@ def process_file(file_path: str) -> bool:
     }
 
     text = ""
-    if file_metadata["extension"] in [".txt"]:
+    if file_metadata["extension"] in [".txt", ".md"]:
         # Pure text files
         with open(file_path, "r", encoding='utf-8') as f: #specify encoding, most should be utf-8
             text = f.read()
@@ -196,3 +196,4 @@ if __name__ == "__main__":
     folder_path = folder_path.strip("'")
 
     process_files(folder_path)
+    ES.indices.refresh(index=INDEX)
