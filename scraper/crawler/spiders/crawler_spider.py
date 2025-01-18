@@ -1,6 +1,9 @@
 import scrapy
 from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
+import json
+import os
+
 
 class CrawlerSpider(CrawlSpider):
     name = "crawler_spider"
@@ -48,14 +51,14 @@ class CrawlerSpider(CrawlSpider):
         # Log the URL of each visited page
         self.logger.info(f"Visited: {response.url}")
 
-        # Example processing logic
         parent_url = response.meta.get('parent_url')
         current_url = response.url
 
-        # Insert current page and parent-child link into the database
-        self.db.insert_page(current_url)  # Ensure the current page exists in the database
-        if parent_url:
-            self.db.insert_link(parent_url, current_url)
+        # Yield item as dict; pipeline writes NDJSON
+        yield {
+            "parent_url": parent_url,
+            "current_url": current_url
+        }
 
         # Pass the current URL as the parent for child requests
         for link in LinkExtractor(allow_domains=self.allowed_domains).extract_links(response):
