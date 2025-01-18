@@ -8,6 +8,9 @@
 2. networkx
 3. scrapy
 4. html2text
+5. bs4
+6. dash
+7. pandas
 ## Run Crawler
 scrapy crawl crawler_spider
 cntrl-c to shut down (ONLY PRESS IT ONCE FOR CLEAN SHUTDOWN WHICH ALLOWS RESUME FEATURE)

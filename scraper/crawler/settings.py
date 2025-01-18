@@ -30,6 +30,8 @@ URL_FILTER_PATTERNS = [
    r'mail', 
    r'calendar', 
    r'hcc'
+   r'/node.*'
+   r'/directory.*'
 ]
 
 # Proxy
