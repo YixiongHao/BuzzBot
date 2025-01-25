@@ -49,6 +49,87 @@ def write_checkpoint(checkpoint_file, line_number):
         f.flush()
 
 
+def trim_markdown_file(filename, title, footer_filter):
+    """
+    Trims the Markdown file by:
+    1. Removing all content above the first markdown title heading (#) that contains parts of the title.
+       If no such header is found, trims above the first markdown title heading regardless of its content.
+    2. Removing the footer filter line ("### Georgia Institute of Technology") and everything after it.
+    """
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+
+        # Prepare parts of the title (split into words)
+        title_parts = re.findall(r'\w+', title)
+        if not title_parts:
+            print(f"No valid title parts found in title: '{title}'")
+            return
+
+        # Create a regex pattern to match any of the title parts in a header
+        pattern_specific = re.compile(
+            r'^#\s+.*(' + '|'.join(re.escape(part) for part in title_parts) + r').*',
+            re.IGNORECASE
+        )
+
+        # Create a regex pattern to match any markdown title header
+        pattern_fallback = re.compile(r'^#\s+.*', re.IGNORECASE)
+
+        # Initialize variables to track indices
+        start_index = None
+
+        # 1. Trim the top content
+
+        # First, try to find the specific header
+        for i, line in enumerate(lines):
+            if pattern_specific.match(line):
+                start_index = i
+                print(f"Found specific title header at line {i + 1} in '{filename}'.")
+                break
+
+        # If specific header not found, try to find any title header
+        if start_index is None:
+            for i, line in enumerate(lines):
+                if pattern_fallback.match(line):
+                    start_index = i
+                    print(f"Specific title header not found. Using fallback header at line {i + 1} in '{filename}'.")
+                    break
+
+        if start_index is not None:
+            # Keep content from the matching header onwards
+            trimmed_lines = lines[start_index:]
+            print(f"Trimmed top content in '{filename}' starting from line {start_index + 1}.")
+        else:
+            # No header found; keep the entire content
+            trimmed_lines = lines
+            print(f"No markdown title header found in '{filename}'. No top trimming performed.")
+
+        # 2. Trim the footer content
+
+        # Search for the footer filter line
+        footer_index = None
+        for i, line in enumerate(trimmed_lines):
+            if line.strip() == footer_filter:
+                footer_index = i
+                print(f"Found footer filter at line {i + 1} in '{filename}'. Trimming footer.")
+                break
+
+        if footer_index is not None:
+            # Keep content up to the footer filter line (exclude footer and below)
+            trimmed_lines = trimmed_lines[:footer_index]
+            print(f"Trimmed footer content in '{filename}' up to line {footer_index}.")
+        else:
+            print(f"No footer filter found in '{filename}'. No footer trimming performed.")
+
+        # Write the trimmed content back to the file
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.writelines(trimmed_lines)
+        print(f"Successfully trimmed '{filename}'.\n")
+
+    except Exception as e:
+        print(f"Error trimming file '{filename}': {e}")
+
+
 def download_serially_by_line(ndjson_file, download_dir, checkpoint_file):
     """
     Reads each line in the NDJSON file in order, downloads `current_url`, and saves
@@ -96,7 +177,11 @@ def download_serially_by_line(ndjson_file, download_dir, checkpoint_file):
             md_file = create_file(download_dir, title, content, write=True)
             print(f"--> Created {md_file}")
 
-            # 5. Update our checkpoint to the *next* line
+            # 5. Trim the markdown file as per requirements
+            if isinstance(md_file, str) and not md_file.startswith("Error"):
+                trim_markdown_file(md_file, title, "### Georgia Institute of Technology")
+
+            # 6. Update our checkpoint to the *next* line
             line_number += 1
             write_checkpoint(checkpoint_file, line_number)
 
