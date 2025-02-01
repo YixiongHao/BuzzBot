@@ -9,8 +9,10 @@ import rich
 import whisper
 from elasticsearch import Elasticsearch
 
-ES = Elasticsearch("http://localhost:9200/")
-INDEX = "nls_search_final"
+from CONFIG import ELASTICSEARCH_HOST, INDEX_NAME
+
+ES = Elasticsearch(ELASTICSEARCH_HOST)
+INDEX = INDEX_NAME
 
 def verify_index_contents():
     """

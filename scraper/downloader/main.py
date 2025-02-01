@@ -3,6 +3,8 @@ import os
 import re
 from parser import extractor
 
+from CONFIG import VISITED_URLS_FILE, DOWNLOADED_FILES_DIR, CHECKPOINT_FILE_NAME
+
 
 def create_file(directory, title, content, write=True):
     """
@@ -188,9 +190,9 @@ def download_serially_by_line(ndjson_file, download_dir, checkpoint_file):
 
 def main():
     # NDJSON file with lines of {"parent_url": ..., "current_url": ...}
-    ndjson_file = "./crawled_links/visited_urls.json"
-    download_dir = "downloader/files"  # Change this to an absolute path outside. 
-    checkpoint_file = "downloader/files/checkpoint.txt"
+    ndjson_file = VISITED_URLS_FILE
+    download_dir = DOWNLOADED_FILES_DIR  # Change this to an absolute path outside. 
+    checkpoint_file = CHECKPOINT_FILE_NAME
 
     download_serially_by_line(ndjson_file, download_dir, checkpoint_file)
 

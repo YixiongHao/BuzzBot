@@ -1,4 +1,5 @@
 from proxy.proxy import FreeProxy
+from CONFIG import VISITED_URLS_FILE
 
 BOT_NAME = 'crawler'
 
@@ -38,7 +39,7 @@ URL_FILTER_PATTERNS = [
 PROXY = FreeProxy(timeout=1, rand=True).get()
 
 # JSON FILE NAME
-NDJSON_FILE_NAME = "crawled_links/visited_urls.json"
+NDJSON_FILE_NAME = VISITED_URLS_FILE
 
 JOBDIR = 'crawls/crawler_state'
 

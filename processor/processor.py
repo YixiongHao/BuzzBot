@@ -14,11 +14,14 @@ from rich.progress import Progress, TaskID
 from sentence_transformers import SentenceTransformer
 from transformers import BlipForConditionalGeneration, BlipProcessor
 
+from CONFIG import PYTESSERACT_PATH, PROCESSORED_FOLDER_PATH, ELASTICSEARCH_HOST, SBERT_MODEL_NAME, INDEX_NAME
+
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 #specify path to tesseract executable instead of adding to system path
-pytesseract.pytesseract.tesseract_cmd = r'C:\Users\Yixio\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = PYTESSERACT_PATH
 
 # This is just for illustration purposes.
 # Expand the list to include more extensions and update the process_file function as needed.
@@ -35,8 +38,8 @@ BLIP_MODEL = BlipForConditionalGeneration.from_pretrained(
 )
 
 # Elasticsearch
-ES = Elasticsearch("http://localhost:9200/")
-INDEX = "nls_search_final"
+ES = Elasticsearch(ELASTICSEARCH_HOST)
+INDEX = INDEX_NAME
 
 # To make the index compatible with LangChain's QA chain, besides indexing each field separately,
 # we also index them together as a single field called "metadata"
@@ -214,7 +217,7 @@ def process_files_parallel(folder_path: str):
 
 
 if __name__ == "__main__":
-    folder_path = input("Please enter the folder path: ")
+    folder_path = PROCESSORED_FOLDER_PATH  # input("Please enter the folder path: ")
 
     # Remove the index if it exists, always overwrite the index
     if ES.indices.exists(index=INDEX):

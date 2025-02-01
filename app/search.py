@@ -18,9 +18,11 @@ from langchain_experimental.tools.python.tool import PythonREPLTool
 from langchain_openai import ChatOpenAI
 from sentence_transformers import SentenceTransformer
 
-ES = Elasticsearch("http://localhost:9200/")
-SBERT_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
-INDEX = "nls_search_final"
+from CONFIG import ELASTICSEARCH_HOST,SBERT_MODEL_NAME, INDEX_NAME
+
+ES = Elasticsearch(ELASTICSEARCH_HOST)
+SBERT_MODEL = SentenceTransformer(SBERT_MODEL_NAME)
+INDEX = INDEX_NAME
 
 
 @dataclass
@@ -159,7 +161,7 @@ def answer_question(question: str) -> NLSResult:
     """
     # Setup ElasticsearchStore
     es_store = ElasticsearchStore(
-        es_url="http://localhost:9200",
+        es_url=ELASTICSEARCH_HOST,
         index_name=INDEX,
         embedding=SbertEmbedding(),
         strategy=DenseVectorScriptScoreStrategy(),
