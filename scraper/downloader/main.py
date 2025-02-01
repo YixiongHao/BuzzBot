@@ -189,7 +189,7 @@ def download_serially_by_line(ndjson_file, download_dir, checkpoint_file):
 def main():
     # NDJSON file with lines of {"parent_url": ..., "current_url": ...}
     ndjson_file = "./crawled_links/visited_urls.json"
-    download_dir = "downloader/files"
+    download_dir = "downloader/files"  # Change this to an absolute path outside. 
     checkpoint_file = "downloader/files/checkpoint.txt"
 
     download_serially_by_line(ndjson_file, download_dir, checkpoint_file)
