@@ -182,6 +182,37 @@ def process_files(folder_path: str):
     rich.print("[green bold]Done[/green bold]")
 
 
+def process_files_parallel(folder_path: str):
+    """
+    Process all files in the specified folder using the given process function, in parallel.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    files = get_files_in_folder(folder_path)
+    skipped = []
+
+    with Progress() as progress:
+        task = progress.add_task("Processing files...", total=len(files))
+
+        with ThreadPoolExecutor() as executor:
+            future_to_file = {executor.submit(process_file, file_path): file_path for file_path in files}
+            
+            # As each future completes, update the progress bar and check for success.
+            for future in as_completed(future_to_file):
+                file_path = future_to_file[future]
+                try:
+                    success = future.result()
+                    if not success:
+                        skipped.append(file_path)
+                except Exception as exc:
+                    # Optionally log the exception and treat the file as skipped.
+                    skipped.append(file_path)
+                progress.update(task, advance=1)
+
+    rich.print(f"[yellow]Skipped {len(skipped)} files.[/yellow]")
+    rich.print("[green bold]Done[/green bold]")
+
+
 if __name__ == "__main__":
     folder_path = input("Please enter the folder path: ")
 
