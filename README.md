@@ -44,5 +44,35 @@ In project root directory
 2. Run Visualiser: `python -m visualise.visualiser`
 3. Download Files: `python -m downloader.main`
 4. Run Processor: `python -m processor.processor`
-5. Run Chainlit: `chainlit run app/app.py -w`
 
+## Config Import
+```
+import os
+import importlib.util
+
+root = f"{os.path.dirname(os.path.abspath(__file__))}/.."  # The Root Directory
+spec = importlib.util.spec_from_file_location("CONFIG", f"{root}/CONFIG.py")  # Module
+CONFIG = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(CONFIG)
+```
+
+## Scraper README
+### Project Overview
+1. Crawler crawls the website and stores it as a NDJSON file.
+2. Visualiser creates a map of the crawled webpages.
+3. Proxy is a proxy finder.
+4. Downloader reads the NDJSON file and downloads it.
+### Requirements
+1. sqlite3
+2. networkx
+3. scrapy
+4. html2text
+5. bs4
+6. dash
+7. pandas
+### Stop Cralwer
+`cntrl-c` 
+- (Only press it once for a clean shutdown, allowing the "resume" feature to work.)
+### TODO
+1. Fix proxy code.
+2. Remove headers and footers when converting to text.

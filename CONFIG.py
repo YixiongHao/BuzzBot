@@ -22,5 +22,4 @@ INDEX_NAME = "nls_search_final"
 
 # PROCESSOR : processor.py
 PYTESSERACT_PATH = r'C:\Users\Yixio\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'  # Move Tesseract to inside this project
-PROCESSORED_FOLDER_PATH = DOWNLOADED_FILES_DIR  # Is this the downloaded_file dir from the scraper?
 
