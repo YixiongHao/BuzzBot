@@ -18,7 +18,7 @@ from langchain_experimental.tools.python.tool import PythonREPLTool
 from langchain_openai import ChatOpenAI
 from sentence_transformers import SentenceTransformer
 
-from CONFIG import ELASTICSEARCH_HOST,SBERT_MODEL_NAME, INDEX_NAME
+from CONFIG import ELASTICSEARCH_HOST, SBERT_MODEL_NAME, INDEX_NAME
 
 ES = Elasticsearch(ELASTICSEARCH_HOST)
 SBERT_MODEL = SentenceTransformer(SBERT_MODEL_NAME)

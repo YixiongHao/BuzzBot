@@ -14,7 +14,7 @@ from rich.progress import Progress, TaskID
 from sentence_transformers import SentenceTransformer
 from transformers import BlipForConditionalGeneration, BlipProcessor
 
-from CONFIG import PYTESSERACT_PATH, PROCESSORED_FOLDER_PATH, ELASTICSEARCH_HOST, SBERT_MODEL_NAME, INDEX_NAME
+from CONFIG import PYTESSERACT_PATH, DOWNLOADED_FILES_DIR, ELASTICSEARCH_HOST, INDEX_NAME
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -217,7 +217,7 @@ def process_files_parallel(folder_path: str):
 
 
 if __name__ == "__main__":
-    folder_path = PROCESSORED_FOLDER_PATH  # input("Please enter the folder path: ")
+    folder_path = DOWNLOADED_FILES_DIR  # input("Please enter the folder path: ")
 
     # Remove the index if it exists, always overwrite the index
     if ES.indices.exists(index=INDEX):

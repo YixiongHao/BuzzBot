@@ -3,12 +3,15 @@ A file to store all the USEFUL variables that span multiple files.
 
 TODO: Fix path so it is not relative path
 '''
+import os
+
+
 # SCRAPER/CRAWLER : settings.py
 # SCRAPER/DOWNLOADER : main.py
 # SCRAPER/VISUALISE : visualiser.py
-VISITED_URLS_FILE = "crawled_links/visited_urls.json"
-DOWNLOADED_FILES_DIR = "downloader/files"
-CHECKPOINT_FILE_NAME = "downloader/files/checkpoint.txt"
+VISITED_URLS_FILE = os.getcwd()+"/crawler/crawled_links/visited_urls.json"
+DOWNLOADED_FILES_DIR = os.getcwd()+"/downloader/files"
+CHECKPOINT_FILE_NAME = os.getcwd()+"/downloader/files/checkpoint.txt"
 
 # APP : search.py
 # PROCESSOR : processor.py

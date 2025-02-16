@@ -37,3 +37,12 @@ cd app && chainlit run app.py -w
 ```
 
 The `-w` flag runs the app in watch mode, which allows you to edit the app and see the changes without restarting the app.
+
+## Pipeline
+In project root directory
+1. Run Scraper: `scrapy crawl crawler_spider`
+2. Run Visualiser: `python -m visualise.visualiser`
+3. Download Files: `python -m downloader.main`
+4. Run Processor: `python -m processor.processor`
+5. Run Chainlit: `chainlit run app/app.py -w`
+
