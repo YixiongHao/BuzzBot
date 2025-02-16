@@ -9,9 +9,9 @@ import os
 # SCRAPER/CRAWLER : settings.py
 # SCRAPER/DOWNLOADER : main.py
 # SCRAPER/VISUALISE : visualiser.py
-VISITED_URLS_FILE = os.getcwd()+"/crawler/crawled_links/visited_urls.json"
-DOWNLOADED_FILES_DIR = os.getcwd()+"/downloader/files"
-CHECKPOINT_FILE_NAME = os.getcwd()+"/downloader/files/checkpoint.txt"
+VISITED_URLS_FILE = os.getcwd()+"/data/crawled_links/visited_urls.json"
+DOWNLOADED_FILES_DIR = os.getcwd()+"/data/files"
+CHECKPOINT_FILE_NAME = os.getcwd()+"/data/files/checkpoint.txt"
 
 # APP : search.py
 # PROCESSOR : processor.py

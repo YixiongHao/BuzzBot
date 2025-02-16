@@ -19,16 +19,13 @@ from langchain_openai import ChatOpenAI
 from sentence_transformers import SentenceTransformer
 
 # Import Config
-import importlib.util
-root = f"{os.path.dirname(os.path.abspath(__file__))}/.."
-spec = importlib.util.spec_from_file_location("CONFIG", f"{root}/CONFIG.py")
-CONFIG = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(CONFIG)
-# from CONFIG import ELASTICSEARCH_HOST, SBERT_MODEL_NAME, INDEX_NAME
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from CONFIG import ELASTICSEARCH_HOST, SBERT_MODEL_NAME, INDEX_NAME
 
-ES = Elasticsearch(CONFIG.ELASTICSEARCH_HOST)
-SBERT_MODEL = SentenceTransformer(CONFIG.SBERT_MODEL_NAME)
-INDEX = CONFIG.INDEX_NAME
+ES = Elasticsearch(ELASTICSEARCH_HOST)
+SBERT_MODEL = SentenceTransformer(SBERT_MODEL_NAME)
+INDEX = INDEX_NAME
 
 
 @dataclass
@@ -167,8 +164,8 @@ def answer_question(question: str) -> NLSResult:
     """
     # Setup ElasticsearchStore
     es_store = ElasticsearchStore(
-        es_url=CONFIG.ELASTICSEARCH_HOST,
-        index_name=CONFIG.INDEX,
+        es_url=ELASTICSEARCH_HOST,
+        index_name=INDEX,
         embedding=SbertEmbedding(),
         strategy=DenseVectorScriptScoreStrategy(),
     )

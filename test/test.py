@@ -1,10 +1,8 @@
 import os
-import importlib.util
+import sys
 
-root = f"{os.path.dirname(os.path.abspath(__file__))}/.."
-spec = importlib.util.spec_from_file_location("CONFIG", f"{root}/CONFIG.py")
-CONFIG = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(CONFIG)
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import CONFIG
 
 print(CONFIG.INDEX_NAME)

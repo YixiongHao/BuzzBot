@@ -14,6 +14,8 @@ from rich.progress import Progress, TaskID
 from sentence_transformers import SentenceTransformer
 from transformers import BlipForConditionalGeneration, BlipProcessor
 
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from CONFIG import PYTESSERACT_PATH, DOWNLOADED_FILES_DIR, ELASTICSEARCH_HOST, INDEX_NAME
 
 

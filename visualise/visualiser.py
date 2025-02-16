@@ -5,6 +5,9 @@ import plotly.graph_objects as go
 import networkx as nx
 import json
 
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from CONFIG import VISITED_URLS_FILE
 
 

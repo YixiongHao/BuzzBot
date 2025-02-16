@@ -5,6 +5,8 @@ import requests
 import html2text
 from bs4 import BeautifulSoup
 
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from CONFIG import VISITED_URLS_FILE, DOWNLOADED_FILES_DIR, CHECKPOINT_FILE_NAME
 
 

@@ -41,19 +41,16 @@ The `-w` flag runs the app in watch mode, which allows you to edit the app and s
 ## Pipeline
 In project root directory
 1. Run Scraper: `scrapy crawl crawler_spider`
-2. Run Visualiser: `python -m visualise.visualiser`
-3. Download Files: `python -m downloader.main`
-4. Run Processor: `python -m processor.processor`
+2. Run Visualiser: `python visualise/visualiser.py`
+3. Download Files: `python downloader/main.py`
+4. Run Processor: `python processor/processor.py`
 
 ## Config Import
 ```
 import os
-import importlib.util
-
-root = f"{os.path.dirname(os.path.abspath(__file__))}/.."  # The Root Directory
-spec = importlib.util.spec_from_file_location("CONFIG", f"{root}/CONFIG.py")  # Module
-CONFIG = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(CONFIG)
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import CONFIG
 ```
 
 ## Scraper README
