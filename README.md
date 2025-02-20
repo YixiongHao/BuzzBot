@@ -28,23 +28,15 @@ Create a `.env` file in the `app` directory with your OpenAI API key:
 OPENAI_API_KEY=sk-...
 ```
 
-## Launch Chainlit App  
-
-Go to the `app` directory and launch the Chainlit app: 
-
-```bash
-cd app && chainlit run app.py -w
-```
-
-The `-w` flag runs the app in watch mode, which allows you to edit the app and see the changes without restarting the app.
-
 ## Pipeline
 In project root directory
 1. Run Scraper: `scrapy crawl crawler_spider`
 2. Run Visualiser: `python visualise/visualiser.py`
 3. Download Files: `python downloader/main.py`
 4. Run Processor: `python processor/processor.py`
+5. Run Chainlit: `cd app && chainlit run app.py -w`
 
+The `-w` flag runs the app in watch mode, which allows you to edit the app and see the changes without restarting the app.
 ## Config Import
 ```
 import os
@@ -73,3 +65,20 @@ import CONFIG
 ### TODO
 1. Fix proxy code.
 2. Remove headers and footers when converting to text.
+
+### Things
+```
+docker pull docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+```
+```
+docker run -d --name elasticsearch \
+  -p 9200:9200 -p 9300:9300 \
+  -e "discovery.type=single-node" \
+  -e "ES_JAVA_OPTS=-Xms1g -Xmx1g" \
+  -e "xpack.security.enabled=false" \
+  docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+
+```
+```
+docker start elasticsearch
+```

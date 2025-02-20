@@ -23,7 +23,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 #specify path to tesseract executable instead of adding to system path
-pytesseract.pytesseract.tesseract_cmd = PYTESSERACT_PATH
+#pytesseract.pytesseract.tesseract_cmd = PYTESSERACT_PATH
 
 # This is just for illustration purposes.
 # Expand the list to include more extensions and update the process_file function as needed.
@@ -219,7 +219,8 @@ def process_files_parallel(folder_path: str):
 
 
 if __name__ == "__main__":
-    folder_path = DOWNLOADED_FILES_DIR  # input("Please enter the folder path: ")
+    # folder_path = input("Please enter the folder path: ")  # Linux Path is Different
+    folder_path = DOWNLOADED_FILES_DIR
 
     # Remove the index if it exists, always overwrite the index
     if ES.indices.exists(index=INDEX):
@@ -231,5 +232,5 @@ if __name__ == "__main__":
     folder_path = folder_path.strip('"')
     folder_path = folder_path.strip("'")
 
-    process_files(folder_path)
+    process_files_parallel(folder_path)
     ES.indices.refresh(index=INDEX)

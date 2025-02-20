@@ -173,7 +173,8 @@ def answer_question(question: str) -> NLSResult:
     # Setup llm to use
     load_dotenv()
     openai_api_key = os.getenv("OPENAI_API_KEY")
-    llm = ChatOpenAI(temperature=0.1, openai_api_key=openai_api_key)
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    llm = ChatOpenAI(temperature=0.1, openai_api_key=openai_api_key)#, base_url="https://api.groq.com/openai/v1")
 
     # Setup QA chain
     qa = RetrievalQA.from_chain_type(
@@ -243,7 +244,9 @@ def natural_language_search(query: str) -> tuple[NLSResult, dict[str, File]]:
 
     load_dotenv()
     openai_api_key = os.getenv("OPENAI_API_KEY")
-    llm = ChatOpenAI(temperature=0, openai_api_key=openai_api_key)
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    llm = ChatOpenAI(temperature=0, openai_api_key=openai_api_key)#, base_url="https://api.groq.com/openai/v1")
+
     llm_with_tools = llm.bind(
         functions=[format_tool_to_openai_function(tool) for tool in tools]
     )
