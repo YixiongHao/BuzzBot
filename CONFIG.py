@@ -20,6 +20,11 @@ ELASTICSEARCH_HOST = "http://localhost:9200/"
 SBERT_MODEL_NAME = "all-MiniLM-L6-v2"
 INDEX_NAME = "nls_search_final"
 
+# APP : search.py
+LLM_PROVIDER = "groq"  # Options: openai, groq, others can be added
+DEFAULT_MODEL = "llama-3.3-70b-versatile"
+MAX_SEARCH_RESULTS = 5
+
 # PROCESSOR : processor.py
 PYTESSERACT_PATH = r'C:\Users\Yixio\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'  # Move Tesseract to inside this project
 

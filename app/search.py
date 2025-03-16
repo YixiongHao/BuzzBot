@@ -1,15 +1,14 @@
 import os
-import time
-import json
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Optional, Union, Any
-from pathlib import Path
+from typing import Dict, List, Any
 
 import numpy as np
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 from rich.console import Console
+
+from langchainathome import EmbeddingProvider, SentenceTransformerEmbedding, GroqLLMProvider, OpenAILLMProvider
 
 # Initialize logging and console
 logging.basicConfig(level=logging.INFO)
@@ -18,17 +17,10 @@ console = Console()
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from CONFIG import ELASTICSEARCH_HOST, SBERT_MODEL_NAME, INDEX_NAME
+from CONFIG import ELASTICSEARCH_HOST, INDEX_NAME, LLM_PROVIDER, MAX_SEARCH_RESULTS
 
 # Load environment variables
 load_dotenv()
-
-# Configuration constants - would typically be in a config file
-EMBEDDING_MODEL_TYPE = os.getenv("EMBEDDING_MODEL", "sentence-transformers")
-EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "all-MiniLM-L6-v2")
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq")  # Options: openai, groq, others can be added
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "llama-3.3-70b-versatile")
-MAX_SEARCH_RESULTS = int(os.getenv("MAX_SEARCH_RESULTS", "5"))
 
 
 @dataclass
@@ -51,176 +43,6 @@ class SearchResult:
 
 # Global cache for file metadata
 file_metadata_cache: Dict[str, FileMetadata] = {}
-
-
-class EmbeddingProvider:
-    """Abstract base class for embedding providers"""
-    
-    def __init__(self):
-        self.model = self._load_model()
-        
-    def _load_model(self):
-        """Load the embedding model - to be implemented by subclasses"""
-        raise NotImplementedError
-        
-    def embed_text(self, text: str) -> List[float]:
-        """Embed a single text"""
-        raise NotImplementedError
-        
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
-        """Embed a batch of texts"""
-        raise NotImplementedError
-
-
-class SentenceTransformerEmbedding(EmbeddingProvider):
-    """Sentence Transformer embedding implementation"""
-    
-    def _load_model(self):
-        try:
-            from sentence_transformers import SentenceTransformer
-            return SentenceTransformer(SBERT_MODEL_NAME)
-        except ImportError:
-            logger.error("sentence-transformers package not installed. Run 'pip install sentence-transformers'.")
-            raise
-            
-    def embed_text(self, text: str) -> List[float]:
-        return self.model.encode(text).tolist()
-        
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
-        return self.model.encode(texts).tolist()
-
-
-class LLMProvider:
-    """Abstract base class for LLM providers"""
-    
-    def __init__(self):
-        self.client = self._setup_client()
-        
-    def _setup_client(self):
-        """Set up the LLM client - to be implemented by subclasses"""
-        raise NotImplementedError
-        
-    def generate_response(self, 
-                          system_prompt: str, 
-                          user_prompt: str, 
-                          tools: Optional[List[Dict[str, Any]]] = None, 
-                          temperature: float = 0.0) -> Dict[str, Any]:
-        """Generate a response from the LLM"""
-        raise NotImplementedError
-
-
-class GroqLLMProvider(LLMProvider):
-    """Groq LLM provider implementation"""
-    
-    def _setup_client(self):
-        try:
-            from groq import Groq
-            api_key = os.getenv("GROQ_API_KEY")
-            if not api_key:
-                raise ValueError("GROQ_API_KEY not found in environment variables")
-            return Groq(api_key=api_key)
-        except ImportError:
-            logger.error("groq package not installed. Run 'pip install groq'.")
-            raise
-    
-    def generate_response(self, 
-                          system_prompt: str, 
-                          user_prompt: str, 
-                          tools: Optional[List[Dict[str, Any]]] = None, 
-                          temperature: float = 0.0) -> Dict[str, Any]:
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ]
-        
-        kwargs = {
-            "messages": messages,
-            "temperature": temperature,
-            "model": DEFAULT_MODEL,
-        }
-        
-        if tools:
-            kwargs["tools"] = tools
-            kwargs["tool_choice"] = "auto"
-        
-        try:
-            completion = self.client.chat.completions.create(**kwargs)
-            
-            response = {
-                "content": completion.choices[0].message.content,
-                "tool_calls": []
-            }
-            
-            if hasattr(completion.choices[0].message, "tool_calls") and completion.choices[0].message.tool_calls:
-                response["tool_calls"] = [
-                    {
-                        "name": tool_call.function.name,
-                        "arguments": json.loads(tool_call.function.arguments)
-                    }
-                    for tool_call in completion.choices[0].message.tool_calls
-                ]
-            
-            return response
-        except Exception as e:
-            logger.error(f"Error generating response with Groq: {e}")
-            raise
-
-
-class OpenAILLMProvider(LLMProvider):
-    """OpenAI LLM provider implementation"""
-    
-    def _setup_client(self):
-        try:
-            from openai import OpenAI
-            api_key = os.getenv("OPENAI_API_KEY")
-            if not api_key:
-                raise ValueError("OPENAI_API_KEY not found in environment variables")
-            return OpenAI(api_key=api_key)
-        except ImportError:
-            logger.error("openai package not installed. Run 'pip install openai'.")
-            raise
-    
-    def generate_response(self, 
-                          system_prompt: str, 
-                          user_prompt: str, 
-                          tools: Optional[List[Dict[str, Any]]] = None, 
-                          temperature: float = 0.0) -> Dict[str, Any]:
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ]
-        
-        kwargs = {
-            "messages": messages,
-            "temperature": temperature,
-            "model": os.getenv("OPENAI_MODEL", "gpt-4o"),
-        }
-        
-        if tools:
-            kwargs["tools"] = tools
-            kwargs["tool_choice"] = "auto"
-        
-        try:
-            completion = self.client.chat.completions.create(**kwargs)
-            
-            response = {
-                "content": completion.choices[0].message.content,
-                "tool_calls": []
-            }
-            
-            if hasattr(completion.choices[0].message, "tool_calls") and completion.choices[0].message.tool_calls:
-                response["tool_calls"] = [
-                    {
-                        "name": tool_call.function.name,
-                        "arguments": json.loads(tool_call.function.arguments)
-                    }
-                    for tool_call in completion.choices[0].message.tool_calls
-                ]
-            
-            return response
-        except Exception as e:
-            logger.error(f"Error generating response with OpenAI: {e}")
-            raise
 
 
 class ElasticsearchClient:
@@ -412,10 +234,18 @@ class SearchEngine:
         context = "\n\n".join([f"Document: {doc['filename']}\n{doc['text']}" for doc in documents])
         
         # Prepare prompt for the LLM
-        system_prompt = """You are a helpful assistant that answers questions based on the provided documents. 
-        Your task is to extract relevant information from the documents to provide accurate answers. 
-        If you cannot find the answer in the documents, say so clearly. 
-        Do not make up information. Cite the source document names in your answer."""
+        system_prompt = """You are a highly capable assistant designed to help with searching for files and answering questions about them. You have access to specialized tools for different types of queries. You always have to use at least one tool.
+        
+        You should use the question answering tool to provide information from the files returned by the semantic search tool that answers the query.
+        
+        When responding:
+        - You have to use at least one tool.
+        - Use the tools to obtain accurate results rather than estimating or computing manually.
+        - If the query is ambiguous, make the best assumption and proceed with the search rather than asking for clarification.
+        - Return tool outputs to the user without modifications if they appear correct.
+        
+        Your goal is to route each query to the most suitable tool and provide accurate, helpful responses based on the tool's output.
+        """
         
         user_prompt = f"""Question: {question}
         
@@ -452,7 +282,7 @@ class SearchEngine:
 if __name__ == "__main__":
     search_engine = SearchEngine()
     query = input("Enter your query: ")
-    result = search_engine.route_query(query)
+    result = search_engine.answer_question(query)
 
     if result.result_type == "answer":
         print("\nAnswer:\n", result.answer)
