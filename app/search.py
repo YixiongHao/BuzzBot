@@ -1,35 +1,39 @@
 import os
 import time
+import json
+import logging
 from dataclasses import dataclass
+from typing import Dict, List, Tuple, Optional, Union, Any
+from pathlib import Path
 
 import numpy as np
-import rich
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
-from langchain.agents import AgentExecutor, tool
-from langchain.agents.format_scratchpad import format_to_openai_functions
-from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
-from langchain.chains import RetrievalQA
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.tools.render import format_tool_to_openai_function
-from langchain_core.embeddings import Embeddings
-from langchain_elasticsearch import DenseVectorScriptScoreStrategy, ElasticsearchStore
-from langchain_experimental.tools.python.tool import PythonREPLTool
-from langchain_openai import ChatOpenAI
-from sentence_transformers import SentenceTransformer
+from rich.console import Console
 
-# Import Config
+# Initialize logging and console
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+console = Console()
+
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from CONFIG import ELASTICSEARCH_HOST, SBERT_MODEL_NAME, INDEX_NAME
 
-ES = Elasticsearch(ELASTICSEARCH_HOST)
-SBERT_MODEL = SentenceTransformer(SBERT_MODEL_NAME)
-INDEX = INDEX_NAME
+# Load environment variables
+load_dotenv()
+
+# Configuration constants - would typically be in a config file
+EMBEDDING_MODEL_TYPE = os.getenv("EMBEDDING_MODEL", "sentence-transformers")
+EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "all-MiniLM-L6-v2")
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq")  # Options: openai, groq, others can be added
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "llama-3.3-70b-versatile")
+MAX_SEARCH_RESULTS = int(os.getenv("MAX_SEARCH_RESULTS", "5"))
 
 
 @dataclass
-class File:
+class FileMetadata:
+    """Metadata for a file in the search index"""
     filename: str
     created: float
     path: str
@@ -38,271 +42,421 @@ class File:
 
 
 @dataclass
-class NLSResult:
+class SearchResult:
+    """Results from a search or question answering operation"""
     result_type: str  # "answer" or "search"
-    # list of filenames for search results or sources for answers
-    # NOTE: we don't use list[File] because we want to keep the result type simple enough as the output of tools
-    # so that it's easier for LLM to parse
-    # we keep a mapping from filename to File object separately.
-    files: list[str]
-    answer: str  # answer for question, empty string if result_type is "search"
+    files: List[str]  # list of filenames for search results or sources for answers
+    answer: str = ""  # answer for question, empty string if result_type is "search"
 
 
-# Serve as a cache for File objects
-# Everytime we get a search result, we add the File objects to this cache.
-# For simplicity, we don't invalidate the cache.
-file_by_name: dict[str, File] = {}
+# Global cache for file metadata
+file_metadata_cache: Dict[str, FileMetadata] = {}
 
 
-def time_ranged_search(start_ts: float, end_ts: float) -> list[str]:
-    resp = ES.search(
-        index=INDEX, query={"range": {"created": {"gte": start_ts, "lte": end_ts}}}
-    )
-
-    files: list[str] = []
-    for hit in resp["hits"]["hits"]:
-        # Add to cache
-        file_by_name[hit["_source"]["filename"]] = File(
-            filename=hit["_source"]["filename"],
-            created=hit["_source"]["created"],
-            path=hit["_source"]["metadata"]["path"],
-            size=hit["_source"]["metadata"]["size"],
-            extension=hit["_source"]["metadata"]["extension"],
-        )
-
-        # Add to result
-        files.append(hit["_source"]["filename"])
-
-    return NLSResult(result_type="search", files=files, answer="")
+class EmbeddingProvider:
+    """Abstract base class for embedding providers"""
+    
+    def __init__(self):
+        self.model = self._load_model()
+        
+    def _load_model(self):
+        """Load the embedding model - to be implemented by subclasses"""
+        raise NotImplementedError
+        
+    def embed_text(self, text: str) -> List[float]:
+        """Embed a single text"""
+        raise NotImplementedError
+        
+    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+        """Embed a batch of texts"""
+        raise NotImplementedError
 
 
-@tool
-def get_time_ranged_search_results(start_ts: float, end_ts: float) -> NLSResult:
-    """
-    Returns search results between two Unix timestamps.
-
-    Parameters:
-    - start_ts (float): Start of the time range (in seconds since epoch). Default is 0
-    - end_ts (float): End of the time range (in seconds since epoch).
-
-    Notes:
-    - Both `start_ts` and `end_ts` are required. Do not use the current timestamp as `end_ts` unless specified.
-    - For queries like "files created in 2021", compute `start_ts` as the beginning of 2021 and `end_ts` as the end of 2021.
-
-    Example:
-    - get_time_ranged_search_results(1609459200.0, 1640995199.0) for "files created in 2021".
-    """
-    return time_ranged_search(start_ts, end_ts)
-
-
-def semantic_search(query: str) -> NLSResult:
-    query_embedding = SBERT_MODEL.encode([query])[0]
-    resp = ES.search(
-        index=INDEX,
-        query={
-            "bool": {
-                "should": [
-                    {"match": {"filename": {"query": query, "fuzziness": "auto"}}},
-                    {"match": {"text": {"query": query, "fuzziness": "auto"}}},
-                ]
-            }
-        },
-        knn={
-            "field": "vector",
-            "query_vector": query_embedding,
-            "k": 1,
-            "num_candidates": 3,
-        },
-    )
-
-    files: list[str] = []
-    for hit in resp["hits"]["hits"]:
-        # Add to cache
-        file_by_name[hit["_source"]["filename"]] = File(
-            filename=hit["_source"]["filename"],
-            created=hit["_source"]["created"],
-            path=hit["_source"]["metadata"]["path"],
-            size=hit["_source"]["metadata"]["size"],
-            extension=hit["_source"]["metadata"]["extension"],
-        )
-
-        # Add to result
-        files.append(hit["_source"]["filename"])
-
-    return NLSResult(result_type="search", files=files, answer="")
+class SentenceTransformerEmbedding(EmbeddingProvider):
+    """Sentence Transformer embedding implementation"""
+    
+    def _load_model(self):
+        try:
+            from sentence_transformers import SentenceTransformer
+            return SentenceTransformer(SBERT_MODEL_NAME)
+        except ImportError:
+            logger.error("sentence-transformers package not installed. Run 'pip install sentence-transformers'.")
+            raise
+            
+    def embed_text(self, text: str) -> List[float]:
+        return self.model.encode(text).tolist()
+        
+    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+        return self.model.encode(texts).tolist()
 
 
-@tool
-def get_semantic_search_results(query: str) -> NLSResult:
-    """
-    Returns search results for a semantic query that does not involve time ranges.
-    Example:
-    - get_semantic_search_results("christmas hat")
-    """
-    return semantic_search(query)
+class LLMProvider:
+    """Abstract base class for LLM providers"""
+    
+    def __init__(self):
+        self.client = self._setup_client()
+        
+    def _setup_client(self):
+        """Set up the LLM client - to be implemented by subclasses"""
+        raise NotImplementedError
+        
+    def generate_response(self, 
+                          system_prompt: str, 
+                          user_prompt: str, 
+                          tools: Optional[List[Dict[str, Any]]] = None, 
+                          temperature: float = 0.0) -> Dict[str, Any]:
+        """Generate a response from the LLM"""
+        raise NotImplementedError
 
 
-class SbertEmbedding(Embeddings):
-    """
-    Embedding function for SBERT model.
-    By creating a custom Embeddings class, we can reuse the same embedding function for the QA chain.
-    Otherwise, with HuggingFaceEmbeddings(), we would have to keep two copies of the embedding model in memory.
-
-    The following methods are required by the Embeddings class but we actually only care about `embed_query` .
-    """
-
-    def embed_query(self, query: str) -> list[float]:
-        return SBERT_MODEL.encode(query).tolist()
-
-    def embed_documents(self, documents: list[str]) -> list[list[float]]:
-        return [SBERT_MODEL.encode(doc).tolist() for doc in documents]
-
-
-def answer_question(question: str) -> NLSResult:
-    """
-    Returns answers for a question about the file contents.
-    """
-    # Setup ElasticsearchStore
-    es_store = ElasticsearchStore(
-        es_url=ELASTICSEARCH_HOST,
-        index_name=INDEX,
-        embedding=SbertEmbedding(),
-        strategy=DenseVectorScriptScoreStrategy(),
-    )
-
-    # Setup llm to use
-    load_dotenv()
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    groq_api_key = os.getenv("GROQ_API_KEY")
-    llm = ChatOpenAI(temperature=0.1, openai_api_key=openai_api_key)#, base_url="https://api.groq.com/openai/v1")
-
-    # Setup QA chain
-    qa = RetrievalQA.from_chain_type(
-        chain_type="stuff",  # -> fill up
-        llm=llm,
-        retriever=es_store.as_retriever(
-            search_kwargs={"k": 3},  # Right now, we keep 3 file as the source
-        ),
-        return_source_documents=True,
-    )
-
-    # Invoke QA chain
-    resp = qa.invoke(question)
-
-    answer = resp["result"]
-    files: list[str] = []
-    for doc in resp["source_documents"]:
-        # Add to cache
-        file_by_name[doc.metadata["filename"]] = File(
-            filename=doc.metadata["filename"],
-            created=doc.metadata["created"],
-            path=doc.metadata["path"],
-            size=doc.metadata["size"],
-            extension=doc.metadata["extension"],
-        )
-
-        # Add to result
-        files.append(doc.metadata["filename"])
-
-    return NLSResult(result_type="answer", files=files, answer=answer)
-
-
-@tool
-def get_answers_for_question(question: str) -> NLSResult:
-    """
-    Returns answers for a question about the file contents.
-    """
-    return answer_question(question)
-
-
-SYSTEM_PROMPT = """You are a highly capable assistant designed to help with searching for files and answering questions about them. You have access to specialized tools for different types of queries. You always have to use at least one tool.
-
-You should use the question answering tool to provide information from the files returned by the semantic search tool that answers the query.
-
-When responding:
-- You have to use at least one tool.
-- Use the tools to obtain accurate results rather than estimating or computing manually.
-- If the query is ambiguous, make the best assumption and proceed with the search rather than asking for clarification.
-- Return tool outputs to the user without modifications if they appear correct.
-
-Your goal is to route each query to the most suitable tool and provide accurate, helpful responses based on the tool's output.
-"""
-
-
-def natural_language_search(query: str) -> tuple[NLSResult, dict[str, File]]:
-    """
-    Returns a tuple of (NLSResult, dict[str, File]).
-    The File dict contians the mapping from filename to File object that are relevant to the result.
-    """
-    tools = [
-        get_answers_for_question,  # to answer questions about the file contents
-        # TODO: Consider combining these two tools into a single tool that can perform both time-ranged and semantic search.
-        #get_time_ranged_search_results,  # to perform time-ranged search
-        #get_semantic_search_results,  # to perform semantic search
-        PythonREPLTool(),  # to execute python code, for doing math
-    ]
-
-    load_dotenv()
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    groq_api_key = os.getenv("GROQ_API_KEY")
-    llm = ChatOpenAI(temperature=0, openai_api_key=openai_api_key)#, base_url="https://api.groq.com/openai/v1")
-
-    llm_with_tools = llm.bind(
-        functions=[format_tool_to_openai_function(tool) for tool in tools]
-    )
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", SYSTEM_PROMPT.format(current_time=int(time.time()))),
-            ("user", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
+class GroqLLMProvider(LLMProvider):
+    """Groq LLM provider implementation"""
+    
+    def _setup_client(self):
+        try:
+            from groq import Groq
+            api_key = os.getenv("GROQ_API_KEY")
+            if not api_key:
+                raise ValueError("GROQ_API_KEY not found in environment variables")
+            return Groq(api_key=api_key)
+        except ImportError:
+            logger.error("groq package not installed. Run 'pip install groq'.")
+            raise
+    
+    def generate_response(self, 
+                          system_prompt: str, 
+                          user_prompt: str, 
+                          tools: Optional[List[Dict[str, Any]]] = None, 
+                          temperature: float = 0.0) -> Dict[str, Any]:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
         ]
-    )
-
-    agent = (
-        {
-            "input": lambda x: x["input"],
-            "agent_scratchpad": lambda x: format_to_openai_functions(
-                x["intermediate_steps"]
-            ),
+        
+        kwargs = {
+            "messages": messages,
+            "temperature": temperature,
+            "model": DEFAULT_MODEL,
         }
-        | prompt
-        | llm_with_tools
-        | OpenAIFunctionsAgentOutputParser()
-    )
+        
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = "auto"
+        
+        try:
+            completion = self.client.chat.completions.create(**kwargs)
+            
+            response = {
+                "content": completion.choices[0].message.content,
+                "tool_calls": []
+            }
+            
+            if hasattr(completion.choices[0].message, "tool_calls") and completion.choices[0].message.tool_calls:
+                response["tool_calls"] = [
+                    {
+                        "name": tool_call.function.name,
+                        "arguments": json.loads(tool_call.function.arguments)
+                    }
+                    for tool_call in completion.choices[0].message.tool_calls
+                ]
+            
+            return response
+        except Exception as e:
+            logger.error(f"Error generating response with Groq: {e}")
+            raise
 
-    agent_executor = AgentExecutor(
-        agent=agent,
-        tools=tools,
-        verbose=True,
-        handle_parsing_errors=True,
-        return_intermediate_steps=True,
-    )
 
-    result = agent_executor.invoke({"input": query})
-
-    # Uncomment this for debugging
-    # rich.print(result)
-
-    search_result = result["intermediate_steps"][-1][-1]
-
-    try:
-        if search_result.result_type == "search":
-            # Filter out the search result that the LLM chose to return in the final response
-            # This helps perform file type filtering in the final response
-            search_result.files = [
-                r for r in search_result.files if r in result["output"]
-            ]
-        elif search_result.result_type not in ["search", "answer"]:
-            # This should never happen
-            raise ValueError(f"Invalid result type: {search_result.result_type}")
-
-        file_metas = {
-            fname: f
-            for fname, f in file_by_name.items()
-            if fname in search_result.files
+class OpenAILLMProvider(LLMProvider):
+    """OpenAI LLM provider implementation"""
+    
+    def _setup_client(self):
+        try:
+            from openai import OpenAI
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError("OPENAI_API_KEY not found in environment variables")
+            return OpenAI(api_key=api_key)
+        except ImportError:
+            logger.error("openai package not installed. Run 'pip install openai'.")
+            raise
+    
+    def generate_response(self, 
+                          system_prompt: str, 
+                          user_prompt: str, 
+                          tools: Optional[List[Dict[str, Any]]] = None, 
+                          temperature: float = 0.0) -> Dict[str, Any]:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        
+        kwargs = {
+            "messages": messages,
+            "temperature": temperature,
+            "model": os.getenv("OPENAI_MODEL", "gpt-4o"),
         }
+        
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = "auto"
+        
+        try:
+            completion = self.client.chat.completions.create(**kwargs)
+            
+            response = {
+                "content": completion.choices[0].message.content,
+                "tool_calls": []
+            }
+            
+            if hasattr(completion.choices[0].message, "tool_calls") and completion.choices[0].message.tool_calls:
+                response["tool_calls"] = [
+                    {
+                        "name": tool_call.function.name,
+                        "arguments": json.loads(tool_call.function.arguments)
+                    }
+                    for tool_call in completion.choices[0].message.tool_calls
+                ]
+            
+            return response
+        except Exception as e:
+            logger.error(f"Error generating response with OpenAI: {e}")
+            raise
 
-        return search_result, file_metas
-    except Exception as e:
-        rich.print(e)
-        raise e
+
+class ElasticsearchClient:
+    """Client for Elasticsearch operations"""
+    
+    def __init__(self):
+        self.es = Elasticsearch(ELASTICSEARCH_HOST)
+        if not self.es.ping():
+            raise ConnectionError(f"Could not connect to Elasticsearch at {ELASTICSEARCH_HOST}")
+        
+    def _extract_file_metadata(self, hit: Dict[str, Any]) -> FileMetadata:
+        """Extract file metadata from Elasticsearch hit"""
+        source = hit["_source"]
+        
+        file_meta = FileMetadata(
+            filename=source["filename"],
+            created=source["created"],
+            path=source.get("metadata", {}).get("path", ""),
+            size=source.get("metadata", {}).get("size", 0),
+            extension=source.get("metadata", {}).get("extension", "")
+        )
+        
+        # Add to cache
+        file_metadata_cache[file_meta.filename] = file_meta
+        
+        return file_meta
+        
+    def search_by_time_range(self, start_ts: float, end_ts: float) -> SearchResult:
+        """Search for files within a time range"""
+        resp = self.es.search(
+            index=INDEX_NAME,
+            query={"range": {"created": {"gte": start_ts, "lte": end_ts}}},
+            size=MAX_SEARCH_RESULTS
+        )
+        
+        files = []
+        for hit in resp["hits"]["hits"]:
+            self._extract_file_metadata(hit)
+            files.append(hit["_source"]["filename"])
+            
+        return SearchResult(result_type="search", files=files)
+    
+    def semantic_search(self, query: str, embedding_provider: EmbeddingProvider) -> SearchResult:
+        """Perform semantic search using both keyword matching and vector search"""
+        query_embedding = embedding_provider.embed_text(query)
+        
+        resp = self.es.search(
+            index=INDEX_NAME,
+            query={
+                "bool": {
+                    "should": [
+                        {"match": {"filename": {"query": query, "fuzziness": "auto"}}},
+                        {"match": {"text": {"query": query, "fuzziness": "auto"}}},
+                    ]
+                }
+            },
+            knn={
+                "field": "vector",
+                "query_vector": query_embedding,
+                "k": MAX_SEARCH_RESULTS,
+                "num_candidates": MAX_SEARCH_RESULTS * 2,
+            },
+            size=MAX_SEARCH_RESULTS
+        )
+        
+        files = []
+        for hit in resp["hits"]["hits"]:
+            self._extract_file_metadata(hit)
+            files.append(hit["_source"]["filename"])
+            
+        return SearchResult(result_type="search", files=files)
+    
+    def retrieve_documents_for_qa(self, question: str, embedding_provider: EmbeddingProvider) -> List[Dict[str, Any]]:
+        """Retrieve relevant documents for question answering"""
+        query_embedding = embedding_provider.embed_text(question)
+        
+        resp = self.es.search(
+            index=INDEX_NAME,
+            knn={
+                "field": "vector",
+                "query_vector": query_embedding,
+                "k": 3,  # Retrieve top 3 most relevant documents
+                "num_candidates": 5,
+            },
+            _source=["filename", "text", "created", "metadata"],
+            size=3
+        )
+        
+        documents = []
+        for hit in resp["hits"]["hits"]:
+            self._extract_file_metadata(hit)
+            documents.append({
+                "filename": hit["_source"]["filename"],
+                "text": hit["_source"]["text"],
+                "metadata": hit["_source"].get("metadata", {})
+            })
+            
+        return documents
+
+
+class SearchEngine:
+    """Main search engine class that orchestrates search operations"""
+    
+    def __init__(self):
+        # Initialize embedding provider based on configuration
+
+        self.embedding_provider = SentenceTransformerEmbedding()
+
+        # Initialize LLM provider based on configuration
+        if LLM_PROVIDER == "groq":
+            self.llm_provider = GroqLLMProvider()
+        elif LLM_PROVIDER == "openai":
+            self.llm_provider = OpenAILLMProvider()
+        else:
+            raise ValueError(f"Unsupported LLM provider: {LLM_PROVIDER}")
+        
+        # Initialize Elasticsearch client
+        self.es_client = ElasticsearchClient()
+    
+    def _define_tools(self) -> List[Dict[str, Any]]:
+        """Define the tools for the LLM to use"""
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": "search_by_time_range",
+                    "description": "Search for files created within a specific time range",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "start_ts": {
+                                "type": "number",
+                                "description": "Start of the time range (in seconds since epoch)"
+                            },
+                            "end_ts": {
+                                "type": "number",
+                                "description": "End of the time range (in seconds since epoch)"
+                            }
+                        },
+                        "required": ["start_ts", "end_ts"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "semantic_search",
+                    "description": "Search for files using semantic and keyword matching",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "The search query"
+                            }
+                        },
+                        "required": ["query"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "answer_question",
+                    "description": "Generate an answer to a question based on the content of the files",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "question": {
+                                "type": "string",
+                                "description": "The question to answer"
+                            }
+                        },
+                        "required": ["question"]
+                    }
+                }
+            }
+        ]
+    
+    def answer_question(self, question: str) -> SearchResult:
+        """Answer a question using the contents of relevant documents"""
+        # Retrieve relevant documents
+        documents = self.es_client.retrieve_documents_for_qa(question, self.embedding_provider)
+        
+        if not documents:
+            return SearchResult(result_type="answer", files=[], answer="No relevant documents found to answer your question.")
+        
+        # Prepare context from documents
+        context = "\n\n".join([f"Document: {doc['filename']}\n{doc['text']}" for doc in documents])
+        
+        # Prepare prompt for the LLM
+        system_prompt = """You are a helpful assistant that answers questions based on the provided documents. 
+        Your task is to extract relevant information from the documents to provide accurate answers. 
+        If you cannot find the answer in the documents, say so clearly. 
+        Do not make up information. Cite the source document names in your answer."""
+        
+        user_prompt = f"""Question: {question}
+        
+        Here are the relevant documents to help you answer:
+        
+        {context}"""
+        
+        # Generate answer using LLM
+        response = self.llm_provider.generate_response(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.1  # Slight randomness for more natural answers
+        )
+        
+        # Extract filenames of the documents used
+        files = [doc["filename"] for doc in documents]
+        
+        return SearchResult(
+            result_type="answer",
+            files=files,
+            answer=response["content"]
+        )
+    
+    def route_query(self, query: str) -> SearchResult:
+        """
+        Route the query: if the input looks like a question (ends with '?'),
+        use the question answering system; otherwise, perform a semantic search.
+        """
+        if query.strip().endswith("?"):
+            return self.answer_question(query)
+        else:
+            return self.es_client.semantic_search(query, self.embedding_provider)
+
+if __name__ == "__main__":
+    search_engine = SearchEngine()
+    query = input("Enter your query: ")
+    result = search_engine.route_query(query)
+
+    if result.result_type == "answer":
+        print("\nAnswer:\n", result.answer)
+    else:
+        print("\nSearch Results:")
+        for filename in result.files:
+            print(f"- {filename}")

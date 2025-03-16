@@ -168,3 +168,6 @@ app/.*
 
 # Ignore .DS_Store files in all directories
 **/.DS_Store
+
+# Ignore Scrapped Data
+data/files/*
