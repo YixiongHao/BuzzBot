@@ -243,8 +243,9 @@ class SearchEngine:
         - Use the tools to obtain accurate results rather than estimating or computing manually.
         - If the query is ambiguous, make the best assumption and proceed with the search rather than asking for clarification.
         - Return tool outputs to the user without modifications if they appear correct.
-        
-        Your goal is to route each query to the most suitable tool and provide accurate, helpful responses based on the tool's output.
+
+        Your goal is to route each query to the most suitable tool and provide accurate, helpful responses based on the tool's output. 
+        The reponse should be comprehensive.
         """
         
         user_prompt = f"""Question: {question}
@@ -278,15 +279,4 @@ class SearchEngine:
             return self.answer_question(query)
         else:
             return self.es_client.semantic_search(query, self.embedding_provider)
-
-if __name__ == "__main__":
-    search_engine = SearchEngine()
-    query = input("Enter your query: ")
-    result = search_engine.answer_question(query)
-
-    if result.result_type == "answer":
-        print("\nAnswer:\n", result.answer)
-    else:
-        print("\nSearch Results:")
-        for filename in result.files:
-            print(f"- {filename}")
+        

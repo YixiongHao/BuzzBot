@@ -4,6 +4,7 @@ from rich.console import Console
 import logging
 import json
 from dotenv import load_dotenv
+import re
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -91,8 +92,15 @@ class GroqLLMProvider(LLMProvider):
                           user_prompt: str, 
                           tools: Optional[List[Dict[str, Any]]] = None, 
                           temperature: float = 0.0) -> Dict[str, Any]:
+
+        modified_system_prompt = system_prompt + (
+            "\n\nWhen answering, first show your reasoning under 'Thoughts:' on a new line, "
+            "and then provide your final answer on a new line starting with 'Final Answer:'. "
+            "Do not include any extra text after the final answer."
+        )
+
         messages = [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": modified_system_prompt},
             {"role": "user", "content": user_prompt}
         ]
         
@@ -108,9 +116,21 @@ class GroqLLMProvider(LLMProvider):
         
         try:
             completion = self.client.chat.completions.create(**kwargs)
+
+            full_text = completion.choices[0].message.content
             
+            pattern = re.compile(r"Thoughts:\s*(.*?)\s*Final Answer:\s*(.*)", re.DOTALL)
+            match = pattern.search(full_text)
+            if match:
+                chain_of_thought = match.group(1).strip()
+                final_answer = match.group(2).strip()
+            else:
+                chain_of_thought = ""
+                final_answer = full_text.strip()            
+
             response = {
-                "content": completion.choices[0].message.content,
+                "content": final_answer,
+                "chain_of_thought": chain_of_thought,
                 "tool_calls": []
             }
             
@@ -149,8 +169,15 @@ class OpenAILLMProvider(LLMProvider):
                           user_prompt: str, 
                           tools: Optional[List[Dict[str, Any]]] = None, 
                           temperature: float = 0.0) -> Dict[str, Any]:
+
+        modified_system_prompt = system_prompt + (
+            "\n\nWhen answering, first show your reasoning under 'Thoughts:' on a new line, "
+            "and then provide your final answer on a new line starting with 'Final Answer:'. "
+            "Do not include any extra text after the final answer."
+        )
+
         messages = [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": modified_system_prompt},
             {"role": "user", "content": user_prompt}
         ]
         
@@ -166,9 +193,20 @@ class OpenAILLMProvider(LLMProvider):
         
         try:
             completion = self.client.chat.completions.create(**kwargs)
+
+            full_text = completion.choices[0].message.content
+            pattern = re.compile(r"Thoughts:\s*(.*?)\s*Final Answer:\s*(.*)", re.DOTALL)
+            match = pattern.search(full_text)
+            if match:
+                chain_of_thought = match.group(1).strip()
+                final_answer = match.group(2).strip()
+            else:
+                chain_of_thought = ""
+                final_answer = full_text.strip()   
             
             response = {
-                "content": completion.choices[0].message.content,
+                "content": final_answer,
+                "chain_of_thought": chain_of_thought,
                 "tool_calls": []
             }
             

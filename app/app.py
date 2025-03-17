@@ -1,10 +1,7 @@
 import asyncio
 import time
-import os
-from typing import List, Dict, Any
-import json
+from typing import Dict
 import logging
-from pathlib import Path
 
 import chainlit as cl
 from chainlit.element import Element
@@ -59,7 +56,7 @@ async def handle_search_request(user_input: str) -> None:
     # Use run_in_executor to run the CPU-bound search in a thread pool
     loop = asyncio.get_running_loop()
     search_results = await loop.run_in_executor(
-        None, search_engine.route_query, user_input
+        None, search_engine.answer_question, user_input
     )
     
     # Handle empty search results
@@ -132,7 +129,7 @@ async def process_query(user_input: str) -> None:
     else:
         # Use the standard search routing mechanism
         search_results = await asyncio.get_running_loop().run_in_executor(
-            None, search_engine.route_query, user_input
+            None, search_engine.answer_question, user_input
         )
     
     # Handle and present the results

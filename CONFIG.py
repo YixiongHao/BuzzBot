@@ -21,8 +21,8 @@ SBERT_MODEL_NAME = "all-MiniLM-L6-v2"
 INDEX_NAME = "nls_search_final"
 
 # APP : search.py
-LLM_PROVIDER = "groq"  # Options: openai, groq, others can be added
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
+LLM_PROVIDER = "groq"  # Options: openai, groq
+DEFAULT_MODEL = "llama-3.3-70b-versatile"  # Model LLM provider is groq
 MAX_SEARCH_RESULTS = 5
 
 # PROCESSOR : processor.py
